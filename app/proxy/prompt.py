@@ -82,7 +82,10 @@ class Prompt:
         if provider is None:
             return {
                 "ok": False,
-                "message": f"Unknown model '{self.model}'. Nothing was sent.",
+                "message": (
+                    f"'{self.model}' is not available. "
+                    "An admin has to save that company's key first. Nothing was sent."
+                ),
             }
         reply = provider.complete(text)
         self.sentAt = datetime.now()
@@ -91,11 +94,14 @@ class Prompt:
             fake_words = [span.mapping.pseudo for span in self.spans if span.mapping]
         self.swapNote = SwapNote(self.model, fake_words)
         _store.save_confirmation(
+            prompt_id=self.id,
             prompt_text=self.text,
             text_sent=text,
             secret_count=len(self.spans),
             choice=self.choice,
             model=self.model,
+            reply=reply,
+            flagged=_flagged_labels(self),
         )
         return {"ok": True, "reply": reply}
 
@@ -122,6 +128,13 @@ def begin_prompt(request):
     found = prompt.scan()
     prompt.flagSensitive(found)
     _sessions[prompt.id] = prompt
+    _store.save_held(
+        prompt.id,
+        text,
+        prompt.countSecrets(),
+        _flagged_labels(prompt),
+        prompt.model,
+    )
     return {
         "ok": True,
         "promptId": prompt.id,
@@ -147,13 +160,30 @@ def confirm_prompt(prompt_id: str, choice: str, model=None):
     if model:
         prompt.model = model
     prompt.confirmRedaction()
+    if choice == "keep":
+        prompt.confirmed = False
+        _store.save_confirmation(
+            prompt_id=prompt.id,
+            prompt_text=prompt.text,
+            text_sent="",
+            secret_count=len(prompt.spans),
+            choice="blocked",
+            model=prompt.model,
+            reply="",
+            flagged=_flagged_labels(prompt),
+        )
+        return {
+            "ok": False,
+            "message": (
+                "Employees cannot send the original prompt. "
+                "It was logged for an admin. Apply redaction to continue."
+            ),
+        }
     if choice == "apply":
         outgoing = prompt.applyRedaction()
-    elif choice == "keep":
-        outgoing = prompt.keepOriginal()
     else:
         prompt.confirmed = False
-        return {"ok": False, "message": "Choose apply redaction or keep original."}
+        return {"ok": False, "message": "Apply redaction before the prompt can be sent."}
     sent = prompt.send(outgoing)
     if not sent["ok"]:
         return sent
@@ -172,3 +202,7 @@ def confirm_prompt(prompt_id: str, choice: str, model=None):
 
 def flagged_report():
     return _store.flagged_report()
+
+
+def _flagged_labels(prompt: Prompt):
+    return [f"{span.original} → {span.fakeWord.fakeWord}" for span in prompt.spans]

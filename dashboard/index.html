@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Shadow-AI · Cedar Dental</title>
+  <script>
+    (function () {
+      var saved = localStorage.getItem("shadow-theme");
+      var theme = saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <style>
     :root {
       --ink: #1e2430;
@@ -14,9 +21,30 @@
       --green: #1d6b4a;
       --green-dark: #15543a;
       --mark: #ffe08a;
+      --mark-ink: #1e2430;
       --warn-bg: #fff1e6;
       --warn-ink: #6b2e0e;
       --warn-line: #e0a27a;
+      --field: #fff;
+      --quiet: #ece7df;
+      --pre: #f7f4ee;
+    }
+    html[data-theme="dark"] {
+      --ink: #f3efe8;
+      --muted: #b7b1a6;
+      --paper: #14171b;
+      --card: #22262c;
+      --line: #3a4048;
+      --green: #3d9a6e;
+      --green-dark: #2f7d58;
+      --mark: #e6c15a;
+      --mark-ink: #1e2430;
+      --warn-bg: #3a2418;
+      --warn-ink: #f3c7a8;
+      --warn-line: #8a5a3a;
+      --field: #1a1d21;
+      --quiet: #2c323a;
+      --pre: #1a1d21;
     }
     * { box-sizing: border-box; }
     body {
@@ -30,6 +58,7 @@
       margin: 0 auto;
       padding: 28px 20px 48px;
     }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
     header h1 {
       font-family: Georgia, serif;
       font-size: 32px;
@@ -59,7 +88,7 @@
       padding: 10px 12px;
       font: inherit;
       color: inherit;
-      background: #fff;
+      background: var(--field);
     }
     textarea { min-height: 120px; resize: vertical; }
     .row { display: flex; gap: 16px; align-items: end; margin-top: 12px; }
@@ -76,7 +105,15 @@
     }
     button.primary { background: var(--green); color: white; }
     button.primary:hover { background: var(--green-dark); }
-    button.quiet { background: #ece7df; color: var(--ink); }
+    button.quiet { background: var(--quiet); color: var(--ink); }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    a.quiet {
+      color: var(--ink);
+      background: var(--quiet);
+      text-decoration: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
     button.warn { background: var(--warn-ink); color: white; }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
     .banner {
@@ -89,6 +126,7 @@
     .meta { color: var(--muted); font-size: 14px; margin: 0 0 10px; }
     mark {
       background: var(--mark);
+      color: var(--mark-ink);
       padding: 0 3px;
       border-radius: 3px;
     }
@@ -98,7 +136,7 @@
       white-space: pre-wrap;
       font-family: Consolas, monospace;
       font-size: 14px;
-      background: #f7f4ee;
+      background: var(--pre);
       border-radius: 8px;
       padding: 10px 12px;
       margin: 8px 0 0;
@@ -109,21 +147,24 @@
 <body>
   <main>
     <header>
-      <h1>Shadow-AI employee chat</h1>
-      <p>Cedar Dental · prompts are held until you confirm what is sent.</p>
+      <div>
+        <h1>Shadow-AI employee chat</h1>
+        <p>Cedar Dental · prompts are held until you confirm what is sent.</p>
+      </div>
+      <div class="header-actions">
+        <button class="quiet" id="theme" type="button">Dark mode</button>
+        <a class="quiet" href="/admin">Admin</a>
+      </div>
     </header>
 
     <section>
       <h2>1. Take the prompt</h2>
       <label for="prompt">Prompt for the AI company</label>
-      <textarea id="prompt" placeholder="Type the prompt the hygienist wants answered."></textarea>
+      <textarea id="prompt" spellcheck="false" placeholder="Type the prompt the hygienist wants answered."></textarea>
       <div class="row">
         <div class="field">
           <label for="model">Model</label>
-          <select id="model">
-            <option value="mock-openai">Mock OpenAI</option>
-            <option value="mock-anthropic">Mock Anthropic</option>
-          </select>
+          <select id="model"></select>
         </div>
       </div>
       <label class="check">
@@ -142,9 +183,9 @@
       <p class="meta" id="review-meta"></p>
       <div id="flagged-text"></div>
       <ul id="flag-list"></ul>
+      <p class="meta">The original stays in the admin log. Only the redacted prompt is sent.</p>
       <div class="actions">
-        <button class="primary" id="apply" type="button">Apply redaction</button>
-        <button class="warn" id="keep" type="button">Keep original</button>
+        <button class="primary" id="apply" type="button">Apply redaction and send</button>
       </div>
     </section>
 
@@ -158,12 +199,6 @@
       <pre id="reply"></pre>
     </section>
 
-    <section>
-      <h2>Flagged report</h2>
-      <p class="meta">Not built yet. Dillon fills in the database behind this button.</p>
-      <button class="quiet" id="report" type="button">Flagged report</button>
-      <pre id="report-body" class="hidden"></pre>
-    </section>
   </main>
   <script>
     const SAMPLE = "Patient Maria Alvarez, DOB 03/14/1988, phone 435-555-0199, asked about tooth care. Her email is maria.alvarez@example.com and her SSN is 123-45-6789.";
@@ -173,14 +208,26 @@
     const modelBox = document.querySelector("#model");
     const officeBox = document.querySelector("#office");
 
+    const themeButton = document.querySelector("#theme");
+
+    function syncThemeButton() {
+      themeButton.textContent = document.documentElement.dataset.theme === "dark" ? "Light mode" : "Dark mode";
+    }
+    syncThemeButton();
+    themeButton.addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("shadow-theme", next);
+      syncThemeButton();
+    });
+
     document.querySelector("#sample").addEventListener("click", () => {
       promptBox.value = SAMPLE;
     });
 
     document.querySelector("#submit").addEventListener("click", submitPrompt);
     document.querySelector("#apply").addEventListener("click", () => confirmChoice("apply"));
-    document.querySelector("#keep").addEventListener("click", () => confirmChoice("keep"));
-    document.querySelector("#report").addEventListener("click", loadReport);
+    loadModels();
 
     function showMessage(target, kind, text) {
       target.innerHTML = text ? `<div class="banner ${kind}">${escapeHtml(text)}</div>` : "";
@@ -207,7 +254,9 @@
       promptId = data.promptId;
       const review = document.querySelector("#review");
       review.classList.remove("hidden");
-      const modelLabel = modelBox.options[modelBox.selectedIndex].text;
+      const modelLabel = modelBox.selectedIndex >= 0
+        ? modelBox.options[modelBox.selectedIndex].text
+        : "model";
       document.querySelector("#review-meta").textContent =
         `${data.office} · ${data.secretCount} secret${data.secretCount === 1 ? "" : "s"} flagged · ${modelLabel} · subscription ${data.subscriptionLength} days`;
       document.querySelector("#flagged-text").innerHTML = highlight(promptBox.value.trim(), data.flagged);
@@ -245,28 +294,26 @@
         warning.innerHTML = "";
       }
       const fake = data.fakeWords ? ` · placeholders ${data.fakeWords}` : "";
-      document.querySelector("#result-meta").textContent =
-        `${data.model} · ${data.choice === "keep" ? "kept original" : "redacted"}${fake}`;
+      document.querySelector("#result-meta").textContent = `${data.model} · redacted${fake}`;
       document.querySelector("#text-sent").textContent = data.textSent;
       document.querySelector("#reply").textContent = data.reply;
     }
 
-    async function loadReport() {
-      const response = await fetch("/api/v1/report");
+    async function loadModels() {
+      const response = await fetch("/api/v1/models");
       const data = await response.json();
-      const body = document.querySelector("#report-body");
-      body.classList.remove("hidden");
-      if (data.status === "not yet") {
-        body.textContent = "Flagged-data report is not built yet.";
-        return;
-      }
-      if (!data.rows || data.rows.length === 0) {
-        body.textContent = "No confirmed prompts have been stored.";
-        return;
-      }
-      body.textContent = data.rows.map((row) =>
-        `#${row.id}  ${row.choice}  ${row.model}  secrets ${row.secret_count}\n${row.text_sent}`
-      ).join("\n\n");
+      const saved = localStorage.getItem("shadow-model");
+      modelBox.innerHTML = "";
+      data.models.forEach((model) => {
+        const option = document.createElement("option");
+        option.value = model.id;
+        option.textContent = model.label;
+        if (model.id === saved) option.selected = true;
+        modelBox.appendChild(option);
+      });
+      modelBox.addEventListener("change", () => {
+        localStorage.setItem("shadow-model", modelBox.value);
+      });
     }
 
     function highlight(text, spans) {

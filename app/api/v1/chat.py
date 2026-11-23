@@ -2,7 +2,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.models.chat_request import ChatRequest
-from app.proxy.prompt import begin_prompt, confirm_prompt, flagged_report
+from app.proxy.prompt import begin_prompt, confirm_prompt
+from app.proxy.providers.gateway import available_models
 
 router = APIRouter()
 
@@ -31,6 +32,6 @@ async def confirm(request: Request):
     return JSONResponse(result)
 
 
-@router.get("/report")
-def report():
-    return flagged_report()
+@router.get("/models")
+def models():
+    return {"models": available_models()}
