@@ -62,7 +62,7 @@
     }
     h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
     label { display: block; font-size: 14px; margin: 10px 0 6px; }
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -85,6 +85,10 @@
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     .banner { border-radius: 8px; padding: 10px 12px; margin-top: 12px; background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); }
     .hidden { display: none; }
+    input[type="checkbox"] { width: auto; }
+    .filters { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }
+    .filters > div { min-width: 200px; }
+    label.check { display: flex; align-items: center; gap: 8px; margin: 0; padding-bottom: 10px; }
     article {
       border-top: 1px solid var(--line);
       padding: 12px 0;
@@ -157,8 +161,18 @@
 
       <section>
         <h2>Every prompt</h2>
+        <div class="filters">
+          <div>
+            <label for="filter-model">Model</label>
+            <select id="filter-model"><option value="">All models</option></select>
+          </div>
+          <label class="check">
+            <input type="checkbox" id="filter-blocked"> Blocked attempts only
+          </label>
+        </div>
         <div id="log"></div>
       </section>
+    
     </div>
   </main>
   <script>
@@ -184,7 +198,24 @@
     document.querySelector("#clear-anthropic").addEventListener("click", () => clearKey("anthropic"));
     document.querySelector("#clear-gemini").addEventListener("click", () => clearKey("gemini"));
     document.querySelector("#logout").addEventListener("click", logout);
+    document.querySelector("#filter-model").addEventListener("change", loadLog);
+    document.querySelector("#filter-blocked").addEventListener("change", loadLog);
     refresh();
+
+    let modelsLoaded = false;
+    async function loadModelFilter() {
+      if (modelsLoaded) return;
+      const response = await fetch("/api/v1/models");
+      const data = await response.json();
+      const select = document.querySelector("#filter-model");
+      data.models.forEach((model) => {
+        const option = document.createElement("option");
+        option.value = model.id;
+        option.textContent = model.label;
+        select.appendChild(option);
+      });
+      modelsLoaded = true;
+    }
 
     async function login() {
       const response = await fetch("/api/v1/admin/login", {
@@ -213,6 +244,7 @@
       document.querySelector("#desk").classList.toggle("hidden", !data.ok);
       if (!data.ok) return;
       await loadKeys();
+      await loadModelFilter();
       await loadLog();
     }
 
@@ -271,12 +303,17 @@
     }
 
     async function loadLog() {
-      const response = await fetch("/api/v1/admin/log");
+      const params = new URLSearchParams();
+      const model = document.querySelector("#filter-model").value;
+      if (model) params.set("model", model);
+      if (document.querySelector("#filter-blocked").checked) params.set("blocked", "true");
+      const query = params.toString();
+      const response = await fetch("/api/v1/admin/log" + (query ? "?" + query : ""));
       const data = await response.json();
       const log = document.querySelector("#log");
       log.innerHTML = "";
       if (!data.rows || data.rows.length === 0) {
-        log.textContent = "No prompts yet.";
+        log.textContent = query ? "No prompts match this filter." : "No prompts yet.";
         return;
       }
       data.rows.forEach((row) => {
