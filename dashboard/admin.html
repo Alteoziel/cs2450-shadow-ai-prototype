@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shadow-AI · Admin</title>
+  <script>
+    (function () {
+      var saved = localStorage.getItem("shadow-theme");
+      var theme = saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <style>
+    :root {
+      --ink: #1e2430;
+      --muted: #5c6573;
+      --paper: #f3efe8;
+      --card: #fffdf9;
+      --line: #d8d0c4;
+      --green: #1d6b4a;
+      --green-dark: #15543a;
+      --warn-bg: #fff1e6;
+      --warn-ink: #6b2e0e;
+      --warn-line: #e0a27a;
+      --field: #fff;
+      --quiet: #ece7df;
+      --pre: #f7f4ee;
+    }
+    html[data-theme="dark"] {
+      --ink: #f3efe8;
+      --muted: #b7b1a6;
+      --paper: #14171b;
+      --card: #22262c;
+      --line: #3a4048;
+      --green: #3d9a6e;
+      --green-dark: #2f7d58;
+      --warn-bg: #3a2418;
+      --warn-ink: #f3c7a8;
+      --warn-line: #8a5a3a;
+      --field: #1a1d21;
+      --quiet: #2c323a;
+      --pre: #1a1d21;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.45 "Segoe UI", sans-serif;
+    }
+    main { max-width: 980px; margin: 0 auto; padding: 28px 20px 48px; }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    header h1 { font-family: Georgia, serif; font-size: 32px; font-weight: 600; margin: 0 0 4px; }
+    header p, .meta { color: var(--muted); }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 16px;
+    }
+    h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+    label { display: block; font-size: 14px; margin: 10px 0 6px; }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font: inherit;
+      color: inherit;
+      background: var(--field);
+    }
+    button, a.quiet {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    button.primary { background: var(--green); color: white; }
+    button.quiet, a.quiet { background: var(--quiet); color: var(--ink); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .banner { border-radius: 8px; padding: 10px 12px; margin-top: 12px; background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); }
+    .hidden { display: none; }
+    article {
+      border-top: 1px solid var(--line);
+      padding: 12px 0;
+    }
+    article p { margin: 4px 0; }
+    pre {
+      white-space: pre-wrap;
+      font-family: Consolas, monospace;
+      font-size: 14px;
+      background: var(--pre);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 6px 0 0;
+    }
+    .keys { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .keys { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Office admin</h1>
+        <p>Prompt log and AI company keys. Employees never see this page.</p>
+      </div>
+      <div class="actions">
+        <button class="quiet" id="theme" type="button">Dark mode</button>
+        <a class="quiet" href="/">Employee chat</a>
+      </div>
+    </header>
+
+    <section id="login-panel">
+      <h2>Sign in</h2>
+      <label for="password">Admin password</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <div class="actions">
+        <button class="primary" id="login" type="button">Sign in</button>
+      </div>
+      <div id="login-message"></div>
+    </section>
+
+    <div id="desk" class="hidden">
+      <section>
+        <h2>Company keys</h2>
+        <p class="meta" id="key-status"></p>
+        <div class="keys">
+          <div>
+            <label for="openai">OpenAI key</label>
+            <input id="openai" type="password" autocomplete="off" placeholder="Paste a new key to replace the saved one">
+          </div>
+          <div>
+            <label for="anthropic">Anthropic key</label>
+            <input id="anthropic" type="password" autocomplete="off" placeholder="Paste a new key to replace the saved one">
+          </div>
+          <div>
+            <label for="gemini">Gemini key</label>
+            <input id="gemini" type="password" autocomplete="off" placeholder="Paste a new key to replace the saved one">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="save-keys" type="button">Save keys</button>
+          <button class="quiet" id="use-test-key" type="button">Use test key</button>
+          <button class="quiet" id="clear-openai" type="button">Clear OpenAI</button>
+          <button class="quiet" id="clear-anthropic" type="button">Clear Anthropic</button>
+          <button class="quiet" id="clear-gemini" type="button">Clear Gemini</button>
+          <button class="quiet" id="logout" type="button">Sign out</button>
+        </div>
+        <div id="key-message"></div>
+      </section>
+
+      <section>
+        <h2>Every prompt</h2>
+        <div id="log"></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const themeButton = document.querySelector("#theme");
+    function syncThemeButton() {
+      themeButton.textContent = document.documentElement.dataset.theme === "dark" ? "Light mode" : "Dark mode";
+    }
+    syncThemeButton();
+    themeButton.addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("shadow-theme", next);
+      syncThemeButton();
+    });
+
+    document.querySelector("#login").addEventListener("click", login);
+    document.querySelector("#password").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") login();
+    });
+    document.querySelector("#save-keys").addEventListener("click", saveKeys);
+    document.querySelector("#use-test-key").addEventListener("click", useTestKey);
+    document.querySelector("#clear-openai").addEventListener("click", () => clearKey("openai"));
+    document.querySelector("#clear-anthropic").addEventListener("click", () => clearKey("anthropic"));
+    document.querySelector("#clear-gemini").addEventListener("click", () => clearKey("gemini"));
+    document.querySelector("#logout").addEventListener("click", logout);
+    refresh();
+
+    async function login() {
+      const response = await fetch("/api/v1/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: document.querySelector("#password").value }),
+      });
+      const data = await response.json();
+      if (!data.ok) {
+        show("#login-message", data.message);
+        return;
+      }
+      show("#login-message", "");
+      refresh();
+    }
+
+    async function logout() {
+      await fetch("/api/v1/admin/logout", { method: "POST" });
+      refresh();
+    }
+
+    async function refresh() {
+      const session = await fetch("/api/v1/admin/session");
+      const data = await session.json();
+      document.querySelector("#login-panel").classList.toggle("hidden", data.ok);
+      document.querySelector("#desk").classList.toggle("hidden", !data.ok);
+      if (!data.ok) return;
+      await loadKeys();
+      await loadLog();
+    }
+
+    let fakeKey = "shadow-test";
+
+    function keyLabel(state) {
+      if (state === "test") return "test key";
+      if (state === "saved") return "key saved";
+      return "no key";
+    }
+
+    async function loadKeys() {
+      const response = await fetch("/api/v1/admin/keys");
+      const data = await response.json();
+      fakeKey = data.fakeKey || fakeKey;
+      document.querySelector("#key-status").textContent =
+        `OpenAI ${keyLabel(data.openai)} · Anthropic ${keyLabel(data.anthropic)} · Gemini ${keyLabel(data.gemini)}. Test key is ${fakeKey}. Saved keys stay on this computer.`;
+    }
+
+    async function saveKeys() {
+      const response = await fetch("/api/v1/admin/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          openai: document.querySelector("#openai").value,
+          anthropic: document.querySelector("#anthropic").value,
+          gemini: document.querySelector("#gemini").value,
+        }),
+      });
+      const data = await response.json();
+      if (!data.ok) {
+        show("#key-message", data.message);
+        return;
+      }
+      document.querySelector("#openai").value = "";
+      document.querySelector("#anthropic").value = "";
+      document.querySelector("#gemini").value = "";
+      show("#key-message", "");
+      await loadKeys();
+    }
+
+    async function useTestKey() {
+      document.querySelector("#openai").value = fakeKey;
+      document.querySelector("#anthropic").value = fakeKey;
+      document.querySelector("#gemini").value = fakeKey;
+      await saveKeys();
+    }
+
+    async function clearKey(company) {
+      await fetch("/api/v1/admin/keys/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company }),
+      });
+      await loadKeys();
+    }
+
+    async function loadLog() {
+      const response = await fetch("/api/v1/admin/log");
+      const data = await response.json();
+      const log = document.querySelector("#log");
+      log.innerHTML = "";
+      if (!data.rows || data.rows.length === 0) {
+        log.textContent = "No prompts yet.";
+        return;
+      }
+      data.rows.forEach((row) => {
+        const card = document.createElement("article");
+        const flags = (row.flagged || []).join(", ") || "none";
+        card.innerHTML = `
+          <p class="meta">${escapeHtml(row.created_at)} · ${escapeHtml(row.choice)} · ${escapeHtml(row.model || "")} · ${row.secret_count} flagged</p>
+          <p>Flagged: ${escapeHtml(flags)}</p>
+          <label>What the employee typed</label>
+          <pre>${escapeHtml(row.prompt_text)}</pre>
+          <label>What was sent</label>
+          <pre>${escapeHtml(row.text_sent || "(not sent)")}</pre>
+        `;
+        log.appendChild(card);
+      });
+    }
+
+    function show(selector, text) {
+      const target = document.querySelector(selector);
+      target.innerHTML = text ? `<div class="banner">${escapeHtml(text)}</div>` : "";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+  </script>
+</body>
+</html>
