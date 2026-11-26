@@ -52,10 +52,10 @@ def session(request: Request):
 
 
 @router.get("/log")
-def log(request: Request):
+def log(request: Request, model: str | None = None, blocked: bool = False):
     if not is_admin(request):
         return _unauthorized()
-    return flagged_report()
+    return flagged_report(model=model, blocked_only=blocked)
 
 
 @router.get("/keys")

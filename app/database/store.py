@@ -77,14 +77,24 @@ class PromptStore:
                 ),
             )
 
-    def flagged_report(self) -> dict:
+    def flagged_report(self, model: str | None = None, blocked_only: bool = False) -> dict:
+        clauses, params = [], []
+        if model:
+            clauses.append("model = ?")
+            params.append(model)
+        if blocked_only:
+            clauses.append("choice = ?")
+            params.append("blocked")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         with _connect() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT id, prompt_text, text_sent, secret_count, flagged, choice, model, reply, created_at
                 FROM confirmations
+                {where}
                 ORDER BY created_at DESC
-                """
+                """,
+                params,
             ).fetchall()
         return {
             "status": "ok",
