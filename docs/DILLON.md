@@ -1,7 +1,5 @@
 # Dillon
 
-The prompt log is no longer a stub. Every submitted prompt is stored in `data/shadow.db` and shown on the password-protected admin page (`/admin`).
+Dillon's piece is the filter on the admin prompt log.
 
-`app/database/store.py` already implements `save_held`, `save_confirmation`, and `flagged_report`. Do not replace those with a second database or the admin page will split into two logs.
-
-A useful follow-up, if you still want a piece of your own: add a filter on the admin log (by model, or only rows that were blocked). The page already renders whatever `flagged_report()` returns.
+`PromptStore.flagged_report(model, blocked_only)` in `app/database/store.py` returns every row, one model, or only blocked attempts. The admin page at `/admin` sends those filters. The rows themselves are written by `save_held` and `save_confirmation`.
