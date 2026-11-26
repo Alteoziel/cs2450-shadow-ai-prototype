@@ -200,8 +200,8 @@ def confirm_prompt(prompt_id: str, choice: str, model=None):
     }
 
 
-def flagged_report():
-    return _store.flagged_report()
+def flagged_report(model=None, blocked_only=False):
+    return _store.flagged_report(model=model, blocked_only=blocked_only)
 
 
 def _flagged_labels(prompt: Prompt):
